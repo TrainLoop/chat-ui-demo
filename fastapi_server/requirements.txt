@@ -5,3 +5,5 @@ openai
 httpx
 anthropic
 sse-starlette
+# TrainLoop evaluation SDK
+trainloop-evals-sdk

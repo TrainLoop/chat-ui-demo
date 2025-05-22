@@ -4,6 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import uvicorn
+from trainloop_evals import collect
+
+collect("../trainloop/trainloop.config.yaml")
 
 # Import routes
 from routes.openai_fetch import router as openai_fetch_router
