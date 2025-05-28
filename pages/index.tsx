@@ -1,11 +1,11 @@
-import { TripleChat } from "@/components/Chat/TripleChat";
-import { Footer } from "@/components/Layout/Footer";
-import { Navbar } from "@/components/Layout/Navbar";
 import Head from "next/head";
+import { Navbar } from "@/components/Layout/Navbar";
+import { Footer } from "@/components/Layout/Footer";
+import { QuadChat } from "@/components/Chat/QuadChat";
 
 export default function Home() {
   const handleReset = () => {
-    // This is now just a global reset handler that's passed to TripleChat
+    // This is now just a global reset handler that's passed to QuadChat
     console.log("Global reset triggered");
   };
 
@@ -32,7 +32,7 @@ export default function Home() {
 
         <div className="flex-1 overflow-auto sm:px-10 pb-4 sm:pb-10">
           <div className="w-full mx-auto mt-4 sm:mt-12">
-            <TripleChat onReset={handleReset} />
+            <QuadChat onReset={handleReset} />
           </div>
         </div>
         <Footer />
