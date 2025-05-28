@@ -1,15 +1,28 @@
 #!/usr/bin/env node
 /**
- * Script to run both the Next.js dev server and FastAPI server concurrently
+ * Script to run the Next.js dev server and optionally FastAPI and/or Go servers concurrently
+ * Usage: 
+ *   npm run dev          - runs all servers
+ *   npm run dev -- next  - runs only Next.js
+ *   npm run dev -- next fastapi  - runs Next.js and FastAPI
+ *   npm run dev -- next go       - runs Next.js and Go
  */
 
 const { spawn } = require('child_process');
 const path = require('path');
 
+// Parse command line arguments
+const args = process.argv.slice(2);
+let serversToRun = ['next', 'fastapi', 'go']; // Default: run all servers
+
+if (args.length > 0) {
+  serversToRun = args;
+}
+
 // Make the bash scripts executable
 const { execSync } = require('child_process');
 try {
-  execSync('chmod +x scripts/setup_fastapi.sh scripts/start_fastapi.sh', { stdio: 'inherit' });
+  execSync('chmod +x scripts/setup_fastapi.sh scripts/start_fastapi.sh scripts/setup_go.sh scripts/start_go.sh', { stdio: 'inherit' });
   console.log('Made bash scripts executable');
 } catch (error) {
   console.error('Error making scripts executable:', error);
@@ -39,19 +52,33 @@ function runProcess(command, args, name) {
   return proc;
 }
 
-// Start Next.js dev server
-const nextProcess = runProcess('NODE_OPTIONS="--require=trainloop-llm-logging"', ['npx', 'next', 'dev'], 'Next.js');
+const processes = [];
 
-// Start FastAPI server
-const scriptPath = path.join(__dirname, 'start_fastapi.sh');
-const fastApiProcess = runProcess(scriptPath, [], 'FastAPI');
+// Start Next.js dev server if requested
+if (serversToRun.includes('next')) {
+  const nextProcess = runProcess('NODE_OPTIONS="--require=trainloop-llm-logging"', ['npx', 'next', 'dev'], 'Next.js');
+  processes.push(nextProcess);
+}
+
+// Start FastAPI server if requested
+if (serversToRun.includes('fastapi')) {
+  const fastApiScriptPath = path.join(__dirname, 'start_fastapi.sh');
+  const fastApiProcess = runProcess(fastApiScriptPath, [], 'FastAPI');
+  processes.push(fastApiProcess);
+}
+
+// Start Go server if requested
+if (serversToRun.includes('go')) {
+  const goScriptPath = path.join(__dirname, 'start_go.sh');
+  const goProcess = runProcess(goScriptPath, [], 'Go');
+  processes.push(goProcess);
+}
 
 // Handle process termination
 process.on('SIGINT', () => {
   console.log('Stopping all processes...');
-  nextProcess.kill('SIGINT');
-  fastApiProcess.kill('SIGINT');
+  processes.forEach(proc => proc.kill('SIGINT'));
   process.exit(0);
 });
 
-console.log('Running both servers. Press Ctrl+C to stop.');
+console.log(`Running servers: ${serversToRun.join(', ')}. Press Ctrl+C to stop.`);
