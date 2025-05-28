@@ -40,7 +40,7 @@ function runProcess(command, args, name) {
 }
 
 // Start Next.js dev server
-const nextProcess = runProcess('NODE_OPTIONS="--require=trainloop-evals-sdk"', ['npx', 'next', 'dev'], 'Next.js');
+const nextProcess = runProcess('NODE_OPTIONS="--require=trainloop-llm-logging"', ['npx', 'next', 'dev'], 'Next.js');
 
 // Start FastAPI server
 const scriptPath = path.join(__dirname, 'start_fastapi.sh');

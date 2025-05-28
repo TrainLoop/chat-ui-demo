@@ -6,4 +6,4 @@ httpx
 anthropic
 sse-starlette
 # TrainLoop evaluation SDK
-trainloop-evals-sdk
+trainloop-llm-logging

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import uvicorn
-from trainloop_evals import collect
+from trainloop_llm_logging import collect
 
 collect("../trainloop/trainloop.config.yaml")
 
