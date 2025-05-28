@@ -6,10 +6,12 @@
     "dev": "node scripts/dev.js",
     "dev:next": "next dev",
     "dev:fastapi": "bash scripts/start_fastapi.sh",
+    "dev:go": "bash scripts/start_go.sh",
+    "setup:go": "bash scripts/setup_go.sh",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "bash scripts/setup_fastapi.sh"
+    "postinstall": "bash scripts/setup_fastapi.sh && bash scripts/setup_go.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.41.0",
