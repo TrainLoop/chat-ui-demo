@@ -12,6 +12,7 @@ collect("../trainloop/trainloop.config.yaml")
 from routes.openai_fetch import router as openai_fetch_router
 from routes.openai_sdk import router as openai_sdk_router
 from routes.anthropic_sdk import router as anthropic_sdk_router
+from routes.gemini_sdk import router as gemini_sdk_router
 
 # Configure logging first
 logging.basicConfig(
@@ -44,6 +45,7 @@ try:
     # Log all environment variables for debugging
     logger.info(f"OPENAI_API_KEY exists: {bool(os.getenv('OPENAI_API_KEY'))}")
     logger.info(f"ANTHROPIC_API_KEY exists: {bool(os.getenv('ANTHROPIC_API_KEY'))}")
+    logger.info(f"GEMINI_API_KEY exists: {bool(os.getenv('GEMINI_API_KEY'))}")
 
     # If not found, try loading from actual env variables
     if not os.getenv("OPENAI_API_KEY") and not os.getenv("ANTHROPIC_API_KEY"):
@@ -70,6 +72,7 @@ app.add_middleware(
 app.include_router(openai_fetch_router, prefix="/openai-fetch")
 app.include_router(openai_sdk_router, prefix="/openai-sdk")
 app.include_router(anthropic_sdk_router, prefix="/anthropic-sdk")
+app.include_router(gemini_sdk_router, prefix="/gemini-sdk")
 
 
 @app.get("/")
