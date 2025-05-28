@@ -3,7 +3,7 @@ import { Message } from "@/types";
 import { Chat } from "./Chat";
 import { IconArrowUp } from "@tabler/icons-react";
 
-interface TripleChatProps {
+interface QuadChatProps {
   onReset: () => void;
 }
 
@@ -72,23 +72,26 @@ const SharedChatInput: React.FC<SharedChatInputProps> = ({ onSend, loading }) =>
   );
 };
 
-export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
+export const QuadChat: React.FC<QuadChatProps> = ({ onReset }) => {
   // State for API source selection
-  const [apiSource, setApiSource] = useState<'nextjs' | 'fastapi'>('fastapi');
+  const [apiSource, setApiSource] = useState<'nextjs' | 'fastapi' | 'go'>('fastapi');
 
   // State for each chat
   const [messages1, setMessages1] = useState<Message[]>([]);
   const [messages2, setMessages2] = useState<Message[]>([]);
   const [messages3, setMessages3] = useState<Message[]>([]);
+  const [messages4, setMessages4] = useState<Message[]>([]);
 
   const [loading1, setLoading1] = useState<boolean>(false);
   const [loading2, setLoading2] = useState<boolean>(false);
   const [loading3, setLoading3] = useState<boolean>(false);
+  const [loading4, setLoading4] = useState<boolean>(false);
 
   // Refs for scrolling to bottom
   const chat1EndRef = useRef<HTMLDivElement>(null);
   const chat2EndRef = useRef<HTMLDivElement>(null);
   const chat3EndRef = useRef<HTMLDivElement>(null);
+  const chat4EndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom functions
   const scrollToBottom = (ref: React.RefObject<HTMLDivElement>) => {
@@ -101,9 +104,16 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
     const endpointName = baseEndpoint.replace('/api/', '');
 
     // Build the complete URL based on API source
-    const endpoint = apiSource === 'nextjs'
-      ? baseEndpoint  // Use Next.js API routes
-      : `http://localhost:8000/${endpointName}`; // Direct to FastAPI server
+    let endpoint: string;
+    if (apiSource === 'nextjs') {
+      endpoint = baseEndpoint;  // Use Next.js API routes
+    } else if (apiSource === 'fastapi') {
+      endpoint = `http://localhost:8000/${endpointName}`; // Direct to FastAPI server
+    } else if (apiSource === 'go') {
+      endpoint = `http://localhost:8001/${endpointName}`; // Direct to Go server
+    } else {
+      endpoint = baseEndpoint; // Fallback
+    }
 
     console.log(`Using endpoint: ${endpoint} (API source: ${apiSource})`);
     return endpoint;
@@ -120,6 +130,10 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
 
   const handleSend3 = async (message: Message) => {
     await processMessage(message, setMessages3, setLoading3, getEndpoint("/api/anthropic-sdk"), chat3EndRef);
+  };
+
+  const handleSend4 = async (message: Message) => {
+    await processMessage(message, setMessages4, setLoading4, getEndpoint("/api/gemini-sdk"), chat4EndRef);
   };
 
   // Combined message processing logic
@@ -143,7 +157,7 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          messages: [...(endpoint.includes("/openai-fetch") ? messages1 : endpoint.includes("/openai-sdk") ? messages2 : messages3), message]
+          messages: [...(endpoint.includes("/openai-fetch") ? messages1 : endpoint.includes("/openai-sdk") ? messages2 : endpoint.includes("/anthropic-sdk") ? messages3 : messages4), message]
         })
       });
 
@@ -217,21 +231,24 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
 
   // Function to handle sending to all chats simultaneously
   const handleSendToAll = async (message: Message) => {
-    // Add the message to all three chat windows - but only once
+    // Add the message to all four chat windows - but only once
     setMessages1(prev => [...prev, message]);
     setMessages2(prev => [...prev, message]);
     setMessages3(prev => [...prev, message]);
+    setMessages4(prev => [...prev, message]);
 
     // Set loading states
     setLoading1(true);
     setLoading2(true);
     setLoading3(true);
+    setLoading4(true);
 
     // Send the messages in parallel using the version that doesn't add the user message again
     await Promise.all([
       processMessage(message, setMessages1, setLoading1, getEndpoint("/api/openai-fetch"), chat1EndRef, false),
       processMessage(message, setMessages2, setLoading2, getEndpoint("/api/openai-sdk"), chat2EndRef, false),
-      processMessage(message, setMessages3, setLoading3, getEndpoint("/api/anthropic-sdk"), chat3EndRef, false)
+      processMessage(message, setMessages3, setLoading3, getEndpoint("/api/anthropic-sdk"), chat3EndRef, false),
+      processMessage(message, setMessages4, setLoading4, getEndpoint("/api/gemini-sdk"), chat4EndRef, false)
     ]);
   };
 
@@ -257,11 +274,19 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
     }]);
   };
 
+  const handleReset4 = () => {
+    setMessages4([{
+      role: "assistant",
+      content: `Hello! I'm the Google Gemini Pro bot. I use the Google Generative AI SDK through a server-side API route.`
+    }]);
+  };
+
   // Handle global reset
   const handleGlobalReset = () => {
     handleReset1();
     handleReset2();
     handleReset3();
+    handleReset4();
     onReset();
   };
 
@@ -270,6 +295,7 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
     handleReset1();
     handleReset2();
     handleReset3();
+    handleReset4();
   }, []);
 
   // Scroll effects
@@ -285,6 +311,10 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
     scrollToBottom(chat3EndRef);
   }, [messages3]);
 
+  useEffect(() => {
+    scrollToBottom(chat4EndRef);
+  }, [messages4]);
+
   return (
     <div className="w-full">
       <div className="flex justify-center space-x-4 mb-4">
@@ -295,22 +325,23 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
           Reset All
         </button>
 
-        {/* API Source Toggle */}
+        {/* API Source Dropdown */}
         <div className="flex items-center space-x-2">
-          <span className={apiSource === 'nextjs' ? 'font-bold' : ''}>Next.js API</span>
-          <button
-            className="relative inline-flex items-center h-6 rounded-full w-11 bg-gray-300"
-            onClick={() => setApiSource(apiSource === 'nextjs' ? 'fastapi' : 'nextjs')}
+          <label htmlFor="api-source" className="text-sm font-medium">API Source:</label>
+          <select
+            id="api-source"
+            value={apiSource}
+            onChange={(e) => setApiSource(e.target.value as 'nextjs' | 'fastapi' | 'go')}
+            className="rounded-md border border-gray-300 px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <span
-              className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${apiSource === 'fastapi' ? 'translate-x-6' : 'translate-x-1'}`}
-            />
-          </button>
-          <span className={apiSource === 'fastapi' ? 'font-bold' : ''}>FastAPI</span>
+            <option value="nextjs">Next.js API</option>
+            <option value="fastapi">FastAPI</option>
+            <option value="go">Go Server</option>
+          </select>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="border rounded-lg shadow-sm p-2 max-h-[600px] flex flex-col">
           <h2 className="text-center font-bold mb-2 text-lg">OpenAI Fetch</h2>
           <div className="text-center text-xs text-gray-500 mb-2">GPT-3.5 Turbo via Direct API</div>
@@ -352,6 +383,20 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
             <div ref={chat3EndRef} />
           </div>
         </div>
+
+        <div className="border rounded-lg shadow-sm p-2 max-h-[600px] flex flex-col">
+          <h2 className="text-center font-bold mb-2 text-lg">Google Gemini</h2>
+          <div className="text-center text-xs text-gray-500 mb-2">Gemini Pro via Google AI SDK</div>
+          <div className="flex-1 overflow-auto">
+            <Chat
+              messages={messages4}
+              loading={loading4}
+              onSend={handleSend4}
+              onReset={handleReset4}
+            />
+            <div ref={chat4EndRef} />
+          </div>
+        </div>
       </div>
 
       {/* Shared input section */}
@@ -362,7 +407,7 @@ export const TripleChat: React.FC<TripleChatProps> = ({ onReset }) => {
             Compare responses by sending the same message to all models simultaneously
           </div>
 
-          <SharedChatInput onSend={handleSendToAll} loading={loading1 || loading2 || loading3} />
+          <SharedChatInput onSend={handleSendToAll} loading={loading1 || loading2 || loading3 || loading4} />
         </div>
       </div>
     </div>
