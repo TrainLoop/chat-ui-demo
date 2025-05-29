@@ -1,7 +1,7 @@
-from typing import List, Optional, AsyncGenerator
 import json
 import os
 import logging
+from typing import List, Optional, AsyncGenerator
 from fastapi import APIRouter
 from pydantic import BaseModel
 from google import genai
@@ -9,8 +9,9 @@ from google.genai.types import HttpOptions, Part, Content
 from sse_starlette.sse import EventSourceResponse
 
 
-# Get logger
-logger = logging.getLogger("fastapi-server")
+# Get logger (don't configure here since main.py already configures it)
+logger = logging.getLogger("gemini-sdk")
+logger.setLevel(logging.INFO)  # Explicitly set level for this logger
 
 router = APIRouter()
 
@@ -41,10 +42,10 @@ async def stream_vertex_ai_response(
     char_count = 0
 
     # Check for required environment variables
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    location = os.getenv("GOOGLE_CLOUD_LOCATION", "global")
+    project_id = os.getenv("GOOGLE_PROJECT_ID")
+    location = os.getenv("GOOGLE_LOCATION", "global")
     use_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "True")
-    
+
     logger.info(f"Project ID: {project_id}")
     logger.info(f"Location: {location}")
     logger.info(f"Use Vertex AI: {use_vertex}")
@@ -54,17 +55,24 @@ async def stream_vertex_ai_response(
         http_options=HttpOptions(api_version="v1"),
         vertexai=use_vertex.lower() == "true",
         project=project_id,
-        location=location
+        location=location,
     )
 
     # Build the conversation history
     contents = []
-    
+
     # Add system prompt as the first message if provided
     if system_prompt:
-        contents.append(Content(role="user", parts=[Part.from_text(system_prompt)]))
-        contents.append(Content(role="model", parts=[Part.from_text("I understand. I'll act according to those instructions.")]))
-    
+        contents.append(Content(role="user", parts=[Part(text=system_prompt)]))
+        contents.append(
+            Content(
+                role="model",
+                parts=[
+                    Part(text="I understand. I'll act according to those instructions.")
+                ],
+            )
+        )
+
     # Process messages with character limit
     for message in messages:
         message_content = message.content
@@ -75,37 +83,31 @@ async def stream_vertex_ai_response(
 
         # Convert role names: assistant -> model
         role = "model" if message.role == "assistant" else message.role
-        contents.append(Content(role=role, parts=[Part.from_text(message_content)]))
+        contents.append(Content(role=role, parts=[Part(text=message_content)]))
         char_count += message_length
 
     try:
-        # Generate streaming response
-        response = client.models.generate_content(
+        stream = await client.aio.models.generate_content_stream(
             model=model,
             contents=contents,
-            config={
-                "temperature": temperature,
-                "max_output_tokens": max_tokens,
-                "stream": True,
-            }
+            config={"temperature": temperature, "max_output_tokens": max_tokens},
         )
-        
-        # Stream the response
-        for chunk in response:
+
+        async for chunk in stream:
             if chunk.text:
-                yield f"data: {json.dumps({'content': chunk.text})}\n\n"
-        
-        # Send the done signal
-        yield "data: [DONE]\n\n"
-        
+                logger.info("⇢ %s", chunk.text)  # helpful for debugging
+                yield json.dumps({"text": chunk.text})
+
+        yield "[DONE]"
+
     except Exception as e:
         logger.error(f"Error in Vertex AI streaming: {str(e)}")
         error_message = f"Error: {str(e)}"
-        yield f"data: {json.dumps({'error': error_message})}\n\n"
-        yield "data: [DONE]\n\n"
+        yield json.dumps({"text": error_message})
+        yield "[DONE]"
 
 
-@router.post("/api/chat/gemini-sdk")
+@router.post("/")
 async def gemini_sdk_endpoint(request: ChatRequest):
     """Vertex AI Gemini endpoint."""
     logger.info(f"Received Vertex AI request with model: {request.model}")
@@ -120,5 +122,12 @@ async def gemini_sdk_endpoint(request: ChatRequest):
             system_prompt=request.systemPrompt,
             temperature=request.temperature,
             max_tokens=request.maxTokens,
-        )
+        ),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+            "X-Accel-Buffering": "no",
+        },
     )
