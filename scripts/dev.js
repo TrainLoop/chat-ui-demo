@@ -70,7 +70,7 @@ if (serversToRun.includes('fastapi')) {
 // Start Go server if requested
 if (serversToRun.includes('go')) {
   const goScriptPath = path.join(__dirname, 'start_go.sh');
-  const goProcess = runProcess(goScriptPath, [], 'Go');
+  const goProcess = runProcess(goScriptPath, ['--watch'], 'Go');
   processes.push(goProcess);
 }
 
