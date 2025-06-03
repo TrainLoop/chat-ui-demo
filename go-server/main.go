@@ -8,6 +8,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/mlpierce22/chatbot-ui-go-server/handlers"
+
+	"github.com/TrainLoop/evals/sdk/go/trainloop-llm-logging"
 )
 
 type Config struct {
@@ -61,7 +63,7 @@ func getEnvOrDefault(key, defaultValue string) string {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("CORS: %s %s from %s", r.Method, r.URL.Path, r.Header.Get("Origin"))
-		
+
 		// Set CORS headers
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -86,6 +88,7 @@ func corsHandler(handler http.HandlerFunc) http.Handler {
 }
 
 func main() {
+	trainloop.Collect("../trainloop/trainloop.config.yaml")
 	cfg := loadConfig()
 
 	// Log configuration status
