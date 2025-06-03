@@ -43,7 +43,7 @@ async def stream_vertex_ai_response(
 
     # Check for required environment variables
     project_id = os.getenv("GOOGLE_PROJECT_ID")
-    location = os.getenv("GOOGLE_LOCATION", "global")
+    location = os.getenv("GOOGLE_LOCATION", "us-central1")
     use_vertex = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "True")
 
     logger.info(f"Project ID: {project_id}")
@@ -112,8 +112,6 @@ async def gemini_sdk_endpoint(request: ChatRequest):
     """Vertex AI Gemini endpoint."""
     logger.info(f"Received Vertex AI request with model: {request.model}")
     logger.info(f"Number of messages: {len(request.messages)}")
-    logger.info(f"Temperature: {request.temperature}")
-    logger.info(f"Max tokens: {request.maxTokens}")
 
     return EventSourceResponse(
         stream_vertex_ai_response(
