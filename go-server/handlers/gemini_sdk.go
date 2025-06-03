@@ -31,37 +31,29 @@ func GeminiSDKHandler(projectID, location string, charLimit int) http.HandlerFun
 			return
 		}
 
-		log.Printf("GeminiSDKHandler: Processing request with %d messages", len(req.Messages))
-
 		req.SetDefaults("gemini-sdk")
-		log.Printf("GeminiSDKHandler: Set defaults, model: %s, temp: %f", req.Model, req.Temperature)
 
 		ctx := context.Background()
 		log.Printf("GeminiSDKHandler: Creating Gemini client for project: %s, location: %s", projectID, location)
 		client, err := genai.NewClient(ctx, projectID, location)
 		if err != nil {
-			log.Printf("GeminiSDKHandler: Failed to create client: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to create Gemini client: %v", err), http.StatusInternalServerError)
 			return
 		}
 		defer client.Close()
-		log.Printf("GeminiSDKHandler: Successfully created Gemini client")
 
 		model := client.GenerativeModel(req.Model)
 		model.SetTemperature(float32(req.Temperature))
 		model.SetMaxOutputTokens(int32(req.MaxTokens))
-		log.Printf("GeminiSDKHandler: Configured model with temperature: %f, max tokens: %d", req.Temperature, req.MaxTokens)
 
 		// Add system instruction
 		model.SystemInstruction = &genai.Content{
 			Parts: []genai.Part{genai.Text(req.SystemPrompt)},
 		}
-		log.Printf("GeminiSDKHandler: Set system instruction")
 
 		// Convert messages to Gemini format
 		var contents []*genai.Content
 		processed := processMessages(req.Messages, charLimit)
-		log.Printf("GeminiSDKHandler: Processed %d messages", len(processed))
 		for _, msg := range processed {
 			role := "user"
 			if msg.Role == "assistant" {
@@ -75,27 +67,23 @@ func GeminiSDKHandler(projectID, location string, charLimit int) http.HandlerFun
 		log.Printf("GeminiSDKHandler: Converted to %d Gemini contents", len(contents))
 
 		// Create chat session
-		log.Printf("GeminiSDKHandler: Creating chat session")
 		session := model.StartChat()
 		if len(contents) > 1 {
 			session.History = contents[:len(contents)-1] // All but the last message
 			log.Printf("GeminiSDKHandler: Set chat history with %d messages", len(contents)-1)
 		}
 
-		log.Printf("GeminiSDKHandler: Setting up SSE writer")
 		sseWriter := services.NewSSEWriter(w)
 
 		// Send the last message and stream response
 		if len(contents) > 0 {
 			lastContent := contents[len(contents)-1]
-			log.Printf("GeminiSDKHandler: Sending message stream for last content")
 			iter := session.SendMessageStream(ctx, lastContent.Parts...)
-			log.Printf("GeminiSDKHandler: Created stream iterator, starting to read responses")
 
 			for {
 				resp, err := iter.Next()
 				if err != nil {
-					log.Printf("GeminiSDKHandler: Iterator error: %v", err)
+					log.Printf("GeminiSDKHandler: Iterator finished: %v", err)
 					if err.Error() != "no more items in iterator" {
 						sseWriter.WriteChunk(models.StreamChunk{Error: err.Error()})
 					}
